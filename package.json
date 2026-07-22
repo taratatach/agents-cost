@@ -1,0 +1,30 @@
+{
+  "name": "agents-cost",
+  "version": "0.1.0",
+  "description": "OpenCode TUI plugin: live cumulative cost (main + subagents) in the sidebar.",
+  "type": "module",
+  "license": "GPL-3.0",
+  "author": "taratatach",
+  "homepage": "https://github.com/taratatach/agents-cost",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taratatach/agents-cost.git"
+  },
+  "bugs": {
+    "url": "https://github.com/taratatach/agents-cost/issues"
+  },
+  "keywords": [
+    "opencode-plugin",
+    "opencode",
+    "tui",
+    "cost",
+    "agents"
+  ],
+  "exports": {
+    "./tui": "./mod.tsx"
+  },
+  "files": [
+    "mod.tsx",
+    "LICENSE"
+  ]
+}
