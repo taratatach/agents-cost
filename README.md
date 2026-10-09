@@ -5,16 +5,15 @@ current session — main agent **plus** all subagents — live in the sidebar.
 
 OpenCode's built-in cost display only accounts for the main session. When an agent
 spawns subagents (via the `task` tool, custom subagents, etc.), that spend is invisible.
-`agents-cost` walks the session tree with a BFS over `client.session.children`, sums the
-`AssistantMessage.cost` of every descendant, and keeps the total up to date via
-`message.updated` / `session.created` / `session.deleted` / `session.idle` events.
+`agents-cost` sums the cost of the whole session family — the root session plus every
+descendant the client knows about — and breaks it down into `Main` / `Subs` / `Total`.
 
 Cost is treated as **monotonic** (matches opencode's own accounting: `revert`/`unrevert`
 never subtract), so the displayed number only ever goes up.
 
 ## Install
 
-This is a **TUI plugin** — it goes in `tui.json`, not `opencode.json`.
+This is a **CLI/TUI plugin** — it goes in `cli.json`, not `opencode.json`.
 
 ### From a checkout
 
@@ -23,27 +22,33 @@ git clone https://github.com/taratatach/agents-cost.git \
   ~/.config/opencode/plugins/agents-cost
 ```
 
-Add to `~/.config/opencode/tui.json`:
+Add to `~/.config/opencode/cli.json`:
 
 ```jsonc
 {
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["./plugins/agents-cost"]
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": ["./plugins/agents-cost"]
 }
 ```
 
-The `./` path resolves relative to `tui.json`'s directory (`~/.config/opencode/`).
+The `./` path resolves relative to `cli.json`'s directory (`~/.config/opencode/`).
+
+> **Note** — the TUI entrypoint file must be named `tui.tsx` and sit at the root
+> of the checkout. OpenCode's V2 CLI plugin loader resolves `<dir>/tui` with
+> `Bun.resolveSync` and ignores the `package.json` `exports` map; any other name
+> resolves to nothing and the plugin is silently skipped.
 
 Or clone anywhere and use an absolute path:
 
 ```jsonc
 {
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["file:///absolute/path/to/agents-cost"]
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": ["file:///absolute/path/to/agents-cost"]
 }
 ```
 
-Restart opencode. The plugin loads from the checkout — no npm, no cache.
+Restart opencode. The plugin loads from the checkout — no npm, no cache: OpenCode
+resolves `@opencode/plugin/tui`, `@opentui/solid` and `solid-js` at runtime.
 
 ## What you see
 
@@ -63,24 +68,25 @@ Total $1.49
 
 ## How it works
 
-On load, the plugin:
+The plugin claims the `sidebar.content` slot. For the displayed session it reads
+OpenCode's own reactive session data (`@opencode/plugin/tui` context):
 
-1. BFS-walks `client.session.children` from the current session, collecting every
-   reachable descendant.
-2. For each child, fetches `client.session.messages` and seeds a per-message cost
-   baseline (so a subagent that already ran before the plugin loaded is still counted).
-3. Subscribes to `message.updated` (applies positive deltas only, keyed by message ID),
-   `session.created` (adds new children), `session.deleted` (drops tracking, cost stays
-   monotone), and `session.idle` (resync safety net in case an event was lost).
+- **Main** — `data.session.get(sessionID)?.cost`, the root session's own cost.
+- **Total** — `data.session.cost(sessionID)`, which sums the whole session family
+  (root + every registered descendant) and is kept up to date by opencode's data
+  layer via `session.usage.updated` / `session.created` / `session.deleted` events.
+- **Subs** — `Total - Main`, guarded by `max(0, …)`.
 
-Cost deltas are guarded by `max(0, delta)` to protect against any event-ordering
-inversion, even though opencode's own cost field is monotone.
+On mount, the plugin bootstraps by syncing the session tree
+(`data.session.sync(id, { children: true })`, BFS) so subagents that already ran
+before the plugin loaded are still counted; afterwards, new descendants register
+themselves through the event stream.
 
 ## Compatibility
 
-Tested against OpenCode 1.18.x. The plugin uses only the public TUI plugin API
-(`@opencode-ai/plugin/tui`) and the SDK client (`@opencode-ai/sdk/v2`); `@opentui/solid`
-and `solid-js` are provided by opencode's bundled runtime, so there are no installable
+Requires OpenCode **2.x** (V1 plugin implementations do not run in V2). The plugin
+uses only the public TUI plugin API (`@opencode/plugin/tui`); `@opentui/solid` and
+`solid-js` are provided by opencode's bundled runtime, so there are no installable
 dependencies.
 
 ## License

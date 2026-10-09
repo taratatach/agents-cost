@@ -1,6 +1,6 @@
 {
   "name": "agents-cost",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "OpenCode TUI plugin: live cumulative cost (main + subagents) in the sidebar.",
   "type": "module",
   "license": "GPL-3.0",
@@ -21,10 +21,29 @@
     "agents"
   ],
   "exports": {
-    "./tui": "./mod.tsx"
+    "./tui": "./tui.tsx"
   },
   "files": [
-    "mod.tsx",
+    "tui.tsx",
     "LICENSE"
-  ]
+  ],
+  "dependencies": {
+    "@opencode/plugin": "^2.0.26"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.5.17",
+    "@opentui/solid": ">=0.5.17",
+    "solid-js": ">=1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentui/core": {
+      "optional": true
+    },
+    "@opentui/solid": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    }
+  }
 }
