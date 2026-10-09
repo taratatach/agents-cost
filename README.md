@@ -62,8 +62,8 @@ Total $1.49
 ```
 
 - **Main** — `session.cost` of the current session (what opencode shows natively).
-- **Subs** — cumulative cost of every descendant session, summed from
-  `AssistantMessage.cost` deltas.
+- **Subs** — cumulative cost of every descendant session (family total minus
+  the root's own cost).
 - **Total** — `Main + Subs`.
 
 ## How it works
@@ -77,10 +77,13 @@ OpenCode's own reactive session data (`@opencode/plugin/tui` context):
   layer via `session.usage.updated` / `session.created` / `session.deleted` events.
 - **Subs** — `Total - Main`, guarded by `max(0, …)`.
 
-On mount, the plugin bootstraps by syncing the session tree
-(`data.session.sync(id, { children: true })`, BFS) so subagents that already ran
-before the plugin loaded are still counted; afterwards, new descendants register
-themselves through the event stream.
+On mount, the plugin bootstraps by walking the session tree with a BFS over
+`client.session.list({ parentID })` — following the server's pagination cursor,
+since the endpoint caps at 50 sessions per page — and syncing each descendant
+(`data.session.sync(id)`), so subagents that already ran before the plugin loaded
+are still counted; afterwards, new descendants register themselves through the
+event stream. The Total is always computed from the family root
+(`data.session.root()`), so forked/continued sessions are summed correctly too.
 
 ## Compatibility
 

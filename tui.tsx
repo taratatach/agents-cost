@@ -15,7 +15,9 @@ function View(props: { sessionID: string }) {
   const ctx = usePlugin()
 
   const main = createMemo(() => ctx.data.session.get(props.sessionID)?.cost ?? 0)
-  const total = createMemo(() => ctx.data.session.cost(props.sessionID))
+  // cost() sur une session enfant ne retourne que son propre coût : toujours
+  // sommer depuis la racine pour couvrir les forks/continuations.
+  const total = createMemo(() => ctx.data.session.cost(ctx.data.session.root(props.sessionID)))
   // ponytail: garde max(0, ...) — protège contre toute inversion transitoire
   // entre la lecture de `total` et celle de `main` (batch du store).
   const subs = createMemo(() => Math.max(0, total() - main()))
@@ -33,8 +35,13 @@ function View(props: { sessionID: string }) {
         const current = queue.shift() as string
         let children: string[] = []
         try {
-          const res = await ctx.client.session.list({ parentID: current })
-          children = (res.data ?? []).map((s) => s.id)
+          // session.list est limité à 50 par page côté serveur : suivre le curseur.
+          let cursor: string | undefined
+          do {
+            const res = await ctx.client.session.list({ parentID: current, limit: 100, cursor })
+            children.push(...(res.data ?? []).map((s) => s.id))
+            cursor = res.cursor?.next
+          } while (cursor)
         } catch {
           continue
         }
